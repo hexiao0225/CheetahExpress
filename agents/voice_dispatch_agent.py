@@ -147,24 +147,14 @@ class VoiceDispatchAgent:
         order: OrderRequest,
         ranking: RankingScore
     ) -> str:
-        script = f"""
-Hello {driver.name}, this is Cheetah Express dispatch.
-
-We have a new delivery assignment for you:
-
-Pickup Location: {order.pickup.address}
-Dropoff Location: {order.dropoff.address}
-Estimated time to pickup: {ranking.eta_to_pickup_minutes:.0f} minutes
-Total delivery time: {ranking.total_trip_time_minutes:.0f} minutes
-Vehicle required: {order.vehicle_type.value}
-Time window: {order.time_window.start.strftime('%I:%M %p')} to {order.time_window.end.strftime('%I:%M %p')}
-
-Customer: {order.customer_info.name}
-Customer phone: {order.customer_info.phone}
-
-{f"Special instructions: {order.special_instructions}" if order.special_instructions else ""}
-
-Can you accept this delivery assignment? Please respond with 'yes' to accept or 'no' to decline.
-If declining, please briefly state your reason.
-"""
-        return script.strip()
+        instructions = f" Note: {order.special_instructions}." if order.special_instructions else ""
+        script = (
+            f"Hi {driver.name}, Cheetah Express here. "
+            f"New job: pick up at {order.pickup.address}, "
+            f"drop off at {order.dropoff.address}. "
+            f"{ranking.eta_to_pickup_minutes:.0f} minutes to pickup, "
+            f"{ranking.total_trip_time_minutes:.0f} minute trip."
+            f"{instructions} "
+            f"Say yes to accept or no to decline."
+        )
+        return script
