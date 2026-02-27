@@ -36,6 +36,13 @@ htmlcov/
 *.swo
 *~
 
+MODULATE_TESTING.md
+SUMMARY.md
+PROJECT_STRUCTURE.md
+GOOGLE_MAPS_SETUP.md
+ARCHITECTURE.md
+DEPLOYMENT.md
+INTEGRATIONS.md
 
 Quickstart.md
 ProjectStructure.md
@@ -49,5 +56,4 @@ Neo4j-481d2b64-Created-2026-02-27.txt
 frontend/node_modules
 frontend/dist
 frontend/.next
-
-
+frontend/.env

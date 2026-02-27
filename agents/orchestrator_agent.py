@@ -23,7 +23,7 @@ class OrchestratorAgent:
         
         self.use_mock = use_mock
         self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-        self.driver_context_agent = DriverContextAgent(use_mock=use_mock)
+        self.driver_context_agent = DriverContextAgent()
         self.compliance_agent = ComplianceAgent()
         
         if use_mock:
@@ -64,7 +64,7 @@ class OrchestratorAgent:
             
             await self._analyze_order_with_gpt(order)
             
-            logger.info("Step 1: Fetching active drivers from Yutori")
+            logger.info("Step 1: Fetching active drivers from local mock pool")
             active_drivers = await self.driver_context_agent.get_active_drivers()
             
             if not active_drivers:

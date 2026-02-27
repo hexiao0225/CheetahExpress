@@ -65,6 +65,14 @@ export interface AuditTrail {
   rankings: any[]
   voice_calls: any[]
   assignments: any[]
+  driver_location?: {
+    driver_id: string
+    name: string
+    phone: string
+    latitude: number
+    longitude: number
+    address: string
+  }
 }
 
 export const orderApi = {

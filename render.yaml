@@ -9,10 +9,6 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
-      - key: YUTORI_API_KEY
-        sync: false
-      - key: YUTORI_BASE_URL
-        value: https://api.yutori.com/v1
       - key: GOOGLE_MAPS_API_KEY
         sync: false
       - key: MODULATE_API_KEY

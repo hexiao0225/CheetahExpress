@@ -194,13 +194,31 @@ async def get_order_audit_trail(order_id: str):
             if not record or not record["o"]:
                 raise HTTPException(status_code=404, detail="Order not found")
             
+            # Get assigned driver location from mock data for GPS tracking
+            assigned_driver_location = None
+            assignments = [a for a in record["assignments"] if a.get("driver_id")]
+            if assignments:
+                from agents.driver_context_agent import DriverContextAgent
+                driver_agent = DriverContextAgent()
+                driver = await driver_agent.get_driver_by_id(assignments[0]["driver_id"])
+                if driver:
+                    assigned_driver_location = {
+                        "driver_id": driver.driver_id,
+                        "name": driver.name,
+                        "phone": driver.phone,
+                        "latitude": driver.current_location.latitude,
+                        "longitude": driver.current_location.longitude,
+                        "address": driver.current_location.address
+                    }
+            
             return {
                 "order_id": order_id,
                 "order_details": dict(record["o"]),
                 "compliance_checks": [c for c in record["compliance_checks"] if c.get("driver_id")],
                 "rankings": [r for r in record["rankings"] if r.get("driver_id")],
                 "voice_calls": [c for c in record["calls"] if c.get("driver_id")],
-                "assignments": [a for a in record["assignments"] if a.get("driver_id")]
+                "assignments": [a for a in record["assignments"] if a.get("driver_id")],
+                "driver_location": assigned_driver_location
             }
     except HTTPException:
         raise

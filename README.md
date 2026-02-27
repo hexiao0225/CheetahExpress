@@ -23,7 +23,7 @@ Orchestrator Agent (GPT-4o)
 Driver    Compliance
 Context   Check Agent
 Agent     (Neo4j)
-(Yutori)      ↓
+(Mock Pool)   ↓
     ↓         ↓
     └────┬────┘
          ↓
@@ -43,7 +43,7 @@ Agent     (Neo4j)
 ### Multi-Agent Orchestration
 
 - **Orchestrator Agent (GPT-4o)**: Coordinates all sub-agents and analyzes order complexity
-- **Driver Context Agent**: Fetches live driver data from Yutori API (GPS, availability, profiles)
+- **Driver Context Agent**: Loads local mock driver data (GPS, availability, profiles)
 - **Compliance Agent**: Validates drivers against Neo4j rules (license, vehicle type, workload limits)
 - **Routing Agent**: Calculates real-time ETAs via Google Maps Distance Matrix API
 - **Ranking Engine**: Scores drivers based on ETA, compliance, and workload optimization
@@ -72,7 +72,6 @@ Agent     (Neo4j)
 - Neo4j 5.x (local or cloud instance)
 - API Keys:
   - OpenAI (GPT-4o)
-  - Yutori API
   - Google Maps API
   - Modulate Voice API
 
@@ -110,8 +109,6 @@ Edit `.env` with your API keys:
 
 ```env
 OPENAI_API_KEY=sk-your-openai-key
-YUTORI_API_KEY=your-yutori-api-key
-YUTORI_BASE_URL=https://api.yutori.com/v1
 GOOGLE_MAPS_API_KEY=your-google-maps-key
 MODULATE_API_KEY=your-modulate-api-key
 MODULATE_BASE_URL=https://api.modulate.ai/v1
@@ -312,7 +309,7 @@ RETURN o, cc, r, c, a, d1, d2, d3, d4
 
 1. **Order Intake**: Webhook receives delivery order
 2. **GPT-4o Analysis**: Orchestrator analyzes order complexity
-3. **Driver Fetch**: Yutori API returns active drivers with live GPS
+3. **Driver Fetch**: Local mock pool returns active drivers with SF GPS
 4. **Compliance Check**: Neo4j validates each driver against rules:
    - License valid (>14 days until expiry)
    - Vehicle type matches order
@@ -367,7 +364,7 @@ Score = 100
 | Backend        | FastAPI (Python 3.11) |
 | Orchestration  | OpenAI GPT-4o         |
 | Database       | Neo4j 5.x             |
-| Driver Data    | Yutori API            |
+| Driver Data    | Local mock pool       |
 | Routing        | Google Maps API       |
 | Voice Dispatch | Modulate AI           |
 | Logging        | structlog             |

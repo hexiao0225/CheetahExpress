@@ -11,8 +11,6 @@ class RoutingAgent:
     
     def __init__(self):
         self.google_maps_api_key = settings.google_maps_api_key
-        self.yutori_base_url = settings.yutori_base_url
-        self.yutori_api_key = settings.yutori_api_key
     
     async def calculate_routes(
         self, 

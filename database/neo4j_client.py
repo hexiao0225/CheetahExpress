@@ -57,16 +57,23 @@ class Neo4jClient:
     
     def create_order_audit_graph(self, order_id: str, order_data: Dict[str, Any]) -> str:
         query = """
-        CREATE (o:Order {
-            order_id: $order_id,
-            pickup_address: $pickup_address,
-            dropoff_address: $dropoff_address,
-            vehicle_type: $vehicle_type,
-            time_window_start: datetime($time_window_start),
-            time_window_end: datetime($time_window_end),
-            created_at: datetime(),
-            status: 'processing'
-        })
+        MERGE (o:Order {order_id: $order_id})
+        ON CREATE SET o.created_at = datetime()
+        SET o.pickup_address = $pickup_address,
+            o.dropoff_address = $dropoff_address,
+            o.vehicle_type = $vehicle_type,
+            o.time_window_start = datetime($time_window_start),
+            o.time_window_end = datetime($time_window_end),
+            o.status = 'processing',
+            o.status_message = '',
+            o.assigned_driver_id = null,
+            o.updated_at = datetime()
+        WITH o
+        OPTIONAL MATCH (o)-[r1:COMPLIANCE_CHECK|RANKED|CALLED]->(:Driver)
+        DELETE r1
+        WITH o
+        OPTIONAL MATCH (:Driver)-[r2:ASSIGNED_TO]->(o)
+        DELETE r2
         RETURN o.order_id as order_id
         """
         with self.driver.session() as session:
