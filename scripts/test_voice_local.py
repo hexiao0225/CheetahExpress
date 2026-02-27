@@ -230,9 +230,9 @@ def main() -> None:
 
     # ── Voice acknowledgment ──────────────────────────────────────────────────
     if outcome == CallOutcome.ACCEPTED:
-        speak(f"Perfect, thank you {driver.name}. You're confirmed. We'll send the details to your app.")
+        speak("Order confirmed.")
     else:
-        speak(f"Got it {driver.name}. We'll assign another driver. Thanks for letting us know.")
+        speak("You have declined.")
 
     # ── Build result ──────────────────────────────────────────────────────────
     result = VoiceCallResult(

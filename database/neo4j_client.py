@@ -21,8 +21,8 @@ class Neo4jClient:
             logger.info("Connected to Neo4j", uri=settings.neo4j_uri)
             self._initialize_schema()
         except Exception as e:
-            logger.error("Failed to connect to Neo4j", error=str(e))
-            raise
+            logger.error("Failed to connect to Neo4j — running without audit graph", error=str(e))
+            self.driver = None
     
     def close(self):
         if self.driver:
@@ -37,7 +37,15 @@ class Neo4jClient:
             """)
             logger.info("Neo4j schema initialized")
     
+    def _db_unavailable(self) -> bool:
+        if not self.driver:
+            logger.warning("Neo4j unavailable — skipping audit log")
+            return True
+        return False
+
     def get_driver_workload_today(self, driver_id: str) -> Dict[str, float]:
+        if self._db_unavailable():
+            return {"km_today": 0.0, "hours_today": 0.0}
         query = """
         MATCH (d:Driver {driver_id: $driver_id})-[a:ASSIGNED_TO]->(o:Order)
         WHERE date(o.created_at) = date()
@@ -56,6 +64,8 @@ class Neo4jClient:
             return {"km_today": 0.0, "hours_today": 0.0}
     
     def create_order_audit_graph(self, order_id: str, order_data: Dict[str, Any]) -> str:
+        if self._db_unavailable():
+            return order_id
         query = """
         MERGE (o:Order {order_id: $order_id})
         ON CREATE SET o.created_at = datetime()
@@ -82,8 +92,10 @@ class Neo4jClient:
             logger.info("Order audit graph created", order_id=order_id)
             return record["order_id"]
     
-    def log_compliance_decision(self, order_id: str, driver_id: str, 
+    def log_compliance_decision(self, order_id: str, driver_id: str,
                                compliance_result: Dict[str, Any]) -> None:
+        if self._db_unavailable():
+            return
         query = """
         MATCH (o:Order {order_id: $order_id})
         MERGE (d:Driver {driver_id: $driver_id})
