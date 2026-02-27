@@ -94,10 +94,12 @@ async def test_modulate_call():
     # Create test ranking
     test_ranking = RankingScore(
         driver_id=test_driver.driver_id,
-        rank=1,
         score=95.5,
         eta_to_pickup_minutes=8.5,
         total_trip_time_minutes=25.0,
+        vehicle_match=True,
+        license_expiry_buffer_days=120,
+        remaining_km_budget=180.0,
         reasoning="Test call - highest ranked driver"
     )
     
