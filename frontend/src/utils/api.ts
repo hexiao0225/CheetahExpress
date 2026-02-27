@@ -32,6 +32,25 @@ export interface Order {
   }
 }
 
+export interface OrdersGraphEdge {
+  order_id: string
+  status?: string
+  driver_id?: string | null
+  driver_name?: string | null
+  distance_km?: number | null
+  duration_hours?: number | null
+  assigned_at?: string | null
+}
+
+export interface OrdersGraphResponse {
+  count: number
+  orders: OrdersGraphEdge[]
+  drivers: {
+    driver_id: string
+    driver_name: string
+  }[]
+}
+
 export interface MockOrder {
   order_id: string
   pickup: {
@@ -58,17 +77,29 @@ export interface MockOrder {
   priority: number
 }
 
+export interface VoiceCallEntry {
+  driver_id: string
+  outcome: string
+  sentiment?: number
+  decline_reason?: string
+  transcript?: string
+}
+
 export interface AuditTrail {
   order_id: string
   order_details: any
   compliance_checks: any[]
   rankings: any[]
-  voice_calls: any[]
+  voice_calls: VoiceCallEntry[]
   assignments: any[]
   driver_location?: {
     driver_id: string
     name: string
     phone: string
+    vehicle_type?: string
+    license_number?: string
+    license_expiry?: string
+    is_available?: boolean
     latitude: number
     longitude: number
     address: string
@@ -110,6 +141,7 @@ export const orderApi = {
   submitMockOrder: (orderId: string) => api.post<Order>(`/mock/orders/${orderId}`),
   getOrderStatus: (orderId: string) => api.get<Order>(`/orders/${orderId}`),
   getAuditTrail: (orderId: string) => api.get<AuditTrail>(`/orders/${orderId}/audit`),
+  getOrdersGraph: () => api.get<OrdersGraphResponse>('/orders_graph'),
   createOrder: (order: any) => api.post<Order>('/orders', order),
   triggerDemoCall: () => api.post<DemoCallResult>('/demo/call'),
   getDemoCallScript: () => api.get<DemoCallScript>('/demo/call/script'),

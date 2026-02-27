@@ -315,7 +315,7 @@ async def get_order_audit_trail(order_id: str):
                 RETURN o,
                        collect(DISTINCT {driver_id: d1.driver_id, is_compliant: cc.is_compliant, reasons: cc.reasons}) as compliance_checks,
                        collect(DISTINCT {driver_id: d2.driver_id, rank: r.rank, score: r.score, reasoning: r.reasoning}) as rankings,
-                       collect(DISTINCT {driver_id: d3.driver_id, outcome: c.outcome, sentiment: c.sentiment_score, decline_reason: c.decline_reason}) as calls,
+                       collect(DISTINCT {driver_id: d3.driver_id, outcome: c.outcome, sentiment: c.sentiment_score, decline_reason: c.decline_reason, transcript: c.transcript}) as calls,
                        collect(DISTINCT {driver_id: d4.driver_id, distance_km: a.distance_km, duration_hours: a.duration_hours}) as assignments
             """, order_id=order_id)
             
@@ -336,6 +336,10 @@ async def get_order_audit_trail(order_id: str):
                         "driver_id": driver.driver_id,
                         "name": driver.name,
                         "phone": driver.phone,
+                        "vehicle_type": driver.vehicle_type.value,
+                        "license_number": driver.license_number,
+                        "license_expiry": driver.license_expiry.isoformat(),
+                        "is_available": driver.is_available,
                         "latitude": driver.current_location.latitude,
                         "longitude": driver.current_location.longitude,
                         "address": driver.current_location.address
@@ -354,6 +358,59 @@ async def get_order_audit_trail(order_id: str):
         raise
     except Exception as e:
         logger.error("Failed to fetch audit trail", order_id=order_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/orders_graph")
+async def get_all_orders_graph():
+    try:
+        with neo4j_client.driver.session() as session:
+            result = session.run("""
+                MATCH (o:Order)
+                OPTIONAL MATCH (d:Driver)-[a:ASSIGNED_TO]->(o)
+                RETURN o.order_id as order_id,
+                       o.status as status,
+                       d.driver_id as driver_id,
+                       a.distance_km as distance_km,
+                       a.duration_hours as duration_hours,
+                       a.assigned_at as assigned_at
+                ORDER BY o.created_at DESC
+            """)
+            rows = [dict(record) for record in result]
+
+        from agents.driver_context_agent import DriverContextAgent
+
+        driver_agent = DriverContextAgent()
+        all_drivers = await driver_agent.get_active_drivers()
+        driver_name_cache = {}
+
+        for row in rows:
+            driver_id = row.get("driver_id")
+            if driver_id and driver_id not in driver_name_cache:
+                driver = await driver_agent.get_driver_by_id(driver_id)
+                driver_name_cache[driver_id] = driver.name if driver else driver_id
+
+            if driver_id:
+                row["driver_name"] = driver_name_cache.get(driver_id, driver_id)
+            else:
+                row["driver_name"] = None
+
+            if row.get("assigned_at") is not None:
+                row["assigned_at"] = str(row["assigned_at"])
+
+        return {
+            "count": len(rows),
+            "orders": rows,
+            "drivers": [
+                {
+                    "driver_id": driver.driver_id,
+                    "driver_name": driver.name,
+                }
+                for driver in all_drivers
+            ],
+        }
+    except Exception as e:
+        logger.error("Failed to fetch all orders graph", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
