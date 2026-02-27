@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.16.0
+    container_name: cheetah-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/cheetahexpress
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - cheetah-network
+
+  app:
+    build: .
+    container_name: cheetah-app
+    ports:
+      - "8000:8000"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=cheetahexpress
+    env_file:
+      - .env
+    depends_on:
+      - neo4j
+    networks:
+      - cheetah-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+
+networks:
+  cheetah-network:
+    driver: bridge
