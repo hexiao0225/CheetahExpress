@@ -1,8 +1,88 @@
 {
-  "hash": "0dfbaace",
+  "hash": "d8a6e28d",
   "configHash": "1c523dad",
-  "lockfileHash": "e3b0c442",
-  "browserHash": "dcbf6631",
-  "optimized": {},
-  "chunks": {}
+  "lockfileHash": "93ca6110",
+  "browserHash": "2f505447",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "cf0b0a28",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "c57d786d",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "4d76a338",
+      "needsInterop": true
+    },
+    "@tanstack/react-query": {
+      "src": "../../node_modules/@tanstack/react-query/build/modern/index.js",
+      "file": "@tanstack_react-query.js",
+      "fileHash": "a1c6d9c3",
+      "needsInterop": false
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "84823ed2",
+      "needsInterop": false
+    },
+    "sonner": {
+      "src": "../../node_modules/sonner/dist/index.mjs",
+      "file": "sonner.js",
+      "fileHash": "28a230ea",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "e71f4af6",
+      "needsInterop": false
+    },
+    "framer-motion": {
+      "src": "../../node_modules/framer-motion/dist/es/index.mjs",
+      "file": "framer-motion.js",
+      "fileHash": "e576a443",
+      "needsInterop": false
+    },
+    "recharts": {
+      "src": "../../node_modules/recharts/es6/index.js",
+      "file": "recharts.js",
+      "fileHash": "c7de57d1",
+      "needsInterop": false
+    },
+    "@vis.gl/react-google-maps": {
+      "src": "../../node_modules/@vis.gl/react-google-maps/dist/index.modern.mjs",
+      "file": "@vis__gl_react-google-maps.js",
+      "fileHash": "f4834fa2",
+      "needsInterop": false
+    },
+    "axios": {
+      "src": "../../node_modules/axios/index.js",
+      "file": "axios.js",
+      "fileHash": "cb78987b",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-I2MCD6RR": {
+      "file": "chunk-I2MCD6RR.js"
+    },
+    "chunk-T6PWRRVS": {
+      "file": "chunk-T6PWRRVS.js"
+    },
+    "chunk-E55NSNTN": {
+      "file": "chunk-E55NSNTN.js"
+    },
+    "chunk-4MBMRILA": {
+      "file": "chunk-4MBMRILA.js"
+    }
+  }
 }

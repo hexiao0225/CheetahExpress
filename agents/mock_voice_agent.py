@@ -42,6 +42,7 @@ class MockVoiceDispatchAgent:
                     "outcome": call_result.outcome.value,
                     "sentiment_score": call_result.sentiment_score,
                     "decline_reason": call_result.decline_reason,
+                    "transcript": call_result.transcript,
                     "call_duration_seconds": call_result.call_duration_seconds
                 }
             )

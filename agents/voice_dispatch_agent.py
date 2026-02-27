@@ -1,6 +1,8 @@
 import httpx
 from typing import List, Dict, Any, Optional
 import structlog
+import json
+from openai import AsyncOpenAI
 from config import settings
 from models import DriverInfo, VoiceCallResult, CallOutcome, RankingScore, OrderRequest
 from database.neo4j_client import neo4j_client
@@ -14,11 +16,19 @@ class VoiceDispatchAgent:
     def __init__(self):
         self.modulate_base_url = settings.modulate_base_url
         self.api_key = settings.modulate_api_key
+        self.enable_fastino = settings.enable_fastino
+        self.fastino_model = settings.fastino_model
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
         self.neo4j = neo4j_client
+        self.fastino_client = None
+        if self.enable_fastino and settings.fastino_api_key:
+            self.fastino_client = AsyncOpenAI(
+                api_key=settings.fastino_api_key,
+                base_url=settings.fastino_base_url
+            )
     
     async def dispatch_to_drivers(
         self,
@@ -49,6 +59,7 @@ class VoiceDispatchAgent:
                     "outcome": call_result.outcome.value,
                     "sentiment_score": call_result.sentiment_score,
                     "decline_reason": call_result.decline_reason,
+                    "transcript": call_result.transcript,
                     "call_duration_seconds": call_result.call_duration_seconds
                 }
             )
@@ -99,12 +110,19 @@ class VoiceDispatchAgent:
                 
                 outcome_str = data.get("outcome", "no_answer")
                 outcome = CallOutcome(outcome_str)
+
+                enriched = await self._enrich_with_fastino(
+                    transcript=data.get("transcript"),
+                    original_outcome=outcome,
+                    original_decline_reason=data.get("decline_reason"),
+                    original_sentiment=data.get("sentiment_score")
+                )
                 
                 result = VoiceCallResult(
                     driver_id=driver.driver_id,
-                    outcome=outcome,
-                    sentiment_score=data.get("sentiment_score"),
-                    decline_reason=data.get("decline_reason"),
+                    outcome=enriched["outcome"],
+                    sentiment_score=enriched["sentiment_score"],
+                    decline_reason=enriched["decline_reason"],
                     transcript=data.get("transcript"),
                     call_duration_seconds=data.get("call_duration_seconds")
                 )
@@ -140,6 +158,69 @@ class VoiceDispatchAgent:
                 outcome=CallOutcome.FAILED,
                 decline_reason=f"System error: {str(e)}"
             )
+
+    async def _enrich_with_fastino(
+        self,
+        transcript: Optional[str],
+        original_outcome: CallOutcome,
+        original_decline_reason: Optional[str],
+        original_sentiment: Optional[float]
+    ) -> Dict[str, Any]:
+        if not transcript or not self.fastino_client:
+            return {
+                "outcome": original_outcome,
+                "decline_reason": original_decline_reason,
+                "sentiment_score": original_sentiment
+            }
+
+        prompt = (
+            "Classify this driver call transcript. "
+            "Return strict JSON with keys: outcome, sentiment_score, decline_reason. "
+            "outcome must be one of: accepted, declined, no_answer. "
+            "sentiment_score must be a float from 0 to 1. "
+            "decline_reason should be null unless outcome is declined."
+        )
+
+        try:
+            response = await self.fastino_client.chat.completions.create(
+                model=self.fastino_model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": transcript}
+                ],
+                temperature=0,
+                max_tokens=80,
+                response_format={"type": "json_object"}
+            )
+
+            content = response.choices[0].message.content or "{}"
+            parsed = json.loads(content)
+            outcome_str = parsed.get("outcome", original_outcome.value)
+            if outcome_str not in {"accepted", "declined", "no_answer"}:
+                outcome_str = original_outcome.value
+
+            sentiment = parsed.get("sentiment_score", original_sentiment)
+            try:
+                if sentiment is not None:
+                    sentiment = float(sentiment)
+                    sentiment = max(0.0, min(1.0, sentiment))
+            except (TypeError, ValueError):
+                sentiment = original_sentiment
+
+            decline_reason = parsed.get("decline_reason", original_decline_reason)
+
+            return {
+                "outcome": CallOutcome(outcome_str),
+                "decline_reason": decline_reason,
+                "sentiment_score": sentiment
+            }
+        except Exception as e:
+            logger.warning("Fastino enrichment skipped", error=str(e))
+            return {
+                "outcome": original_outcome,
+                "decline_reason": original_decline_reason,
+                "sentiment_score": original_sentiment
+            }
     
     def _generate_call_script(
         self,

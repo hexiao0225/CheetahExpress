@@ -185,7 +185,7 @@ async def get_order_audit_trail(order_id: str):
                 RETURN o,
                        collect(DISTINCT {driver_id: d1.driver_id, is_compliant: cc.is_compliant, reasons: cc.reasons}) as compliance_checks,
                        collect(DISTINCT {driver_id: d2.driver_id, rank: r.rank, score: r.score, reasoning: r.reasoning}) as rankings,
-                       collect(DISTINCT {driver_id: d3.driver_id, outcome: c.outcome, sentiment: c.sentiment_score, decline_reason: c.decline_reason}) as calls,
+                       collect(DISTINCT {driver_id: d3.driver_id, outcome: c.outcome, sentiment: c.sentiment_score, decline_reason: c.decline_reason, transcript: c.transcript}) as calls,
                        collect(DISTINCT {driver_id: d4.driver_id, distance_km: a.distance_km, duration_hours: a.duration_hours}) as assignments
             """, order_id=order_id)
             
@@ -206,6 +206,10 @@ async def get_order_audit_trail(order_id: str):
                         "driver_id": driver.driver_id,
                         "name": driver.name,
                         "phone": driver.phone,
+                        "vehicle_type": driver.vehicle_type.value,
+                        "license_number": driver.license_number,
+                        "license_expiry": driver.license_expiry.isoformat(),
+                        "is_available": driver.is_available,
                         "latitude": driver.current_location.latitude,
                         "longitude": driver.current_location.longitude,
                         "address": driver.current_location.address

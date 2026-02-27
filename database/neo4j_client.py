@@ -60,7 +60,11 @@ class Neo4jClient:
         MERGE (o:Order {order_id: $order_id})
         ON CREATE SET o.created_at = datetime()
         SET o.pickup_address = $pickup_address,
+            o.pickup_latitude = $pickup_latitude,
+            o.pickup_longitude = $pickup_longitude,
             o.dropoff_address = $dropoff_address,
+            o.dropoff_latitude = $dropoff_latitude,
+            o.dropoff_longitude = $dropoff_longitude,
             o.vehicle_type = $vehicle_type,
             o.time_window_start = datetime($time_window_start),
             o.time_window_end = datetime($time_window_end),
@@ -135,6 +139,7 @@ class Neo4jClient:
         SET r.outcome = $outcome,
             r.sentiment_score = $sentiment_score,
             r.decline_reason = $decline_reason,
+            r.transcript = $transcript,
             r.call_duration_seconds = $call_duration_seconds,
             r.timestamp = datetime()
         """
@@ -146,6 +151,7 @@ class Neo4jClient:
                 outcome=call_result["outcome"],
                 sentiment_score=call_result.get("sentiment_score"),
                 decline_reason=call_result.get("decline_reason"),
+                transcript=call_result.get("transcript"),
                 call_duration_seconds=call_result.get("call_duration_seconds")
             )
     

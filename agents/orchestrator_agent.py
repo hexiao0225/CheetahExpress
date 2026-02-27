@@ -55,7 +55,11 @@ class OrchestratorAgent:
             order_data = {
                 "order_id": order.order_id,
                 "pickup_address": order.pickup.address,
+                "pickup_latitude": order.pickup.latitude,
+                "pickup_longitude": order.pickup.longitude,
                 "dropoff_address": order.dropoff.address,
+                "dropoff_latitude": order.dropoff.latitude,
+                "dropoff_longitude": order.dropoff.longitude,
                 "vehicle_type": order.vehicle_type.value,
                 "time_window_start": order.time_window.start.isoformat(),
                 "time_window_end": order.time_window.end.isoformat()

@@ -58,17 +58,29 @@ export interface MockOrder {
   priority: number
 }
 
+export interface VoiceCallEntry {
+  driver_id: string
+  outcome: string
+  sentiment?: number
+  decline_reason?: string
+  transcript?: string
+}
+
 export interface AuditTrail {
   order_id: string
   order_details: any
   compliance_checks: any[]
   rankings: any[]
-  voice_calls: any[]
+  voice_calls: VoiceCallEntry[]
   assignments: any[]
   driver_location?: {
     driver_id: string
     name: string
     phone: string
+    vehicle_type?: string
+    license_number?: string
+    license_expiry?: string
+    is_available?: boolean
     latitude: number
     longitude: number
     address: string
