@@ -231,6 +231,59 @@ async def get_order_audit_trail(order_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/v1/orders_graph")
+async def get_all_orders_graph():
+    try:
+        with neo4j_client.driver.session() as session:
+            result = session.run("""
+                MATCH (o:Order)
+                OPTIONAL MATCH (d:Driver)-[a:ASSIGNED_TO]->(o)
+                RETURN o.order_id as order_id,
+                       o.status as status,
+                       d.driver_id as driver_id,
+                       a.distance_km as distance_km,
+                       a.duration_hours as duration_hours,
+                       a.assigned_at as assigned_at
+                ORDER BY o.created_at DESC
+            """)
+            rows = [dict(record) for record in result]
+
+        from agents.driver_context_agent import DriverContextAgent
+
+        driver_agent = DriverContextAgent()
+        all_drivers = await driver_agent.get_active_drivers()
+        driver_name_cache = {}
+
+        for row in rows:
+            driver_id = row.get("driver_id")
+            if driver_id and driver_id not in driver_name_cache:
+                driver = await driver_agent.get_driver_by_id(driver_id)
+                driver_name_cache[driver_id] = driver.name if driver else driver_id
+
+            if driver_id:
+                row["driver_name"] = driver_name_cache.get(driver_id, driver_id)
+            else:
+                row["driver_name"] = None
+
+            if row.get("assigned_at") is not None:
+                row["assigned_at"] = str(row["assigned_at"])
+
+        return {
+            "count": len(rows),
+            "orders": rows,
+            "drivers": [
+                {
+                    "driver_id": driver.driver_id,
+                    "driver_name": driver.name,
+                }
+                for driver in all_drivers
+            ],
+        }
+    except Exception as e:
+        logger.error("Failed to fetch all orders graph", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 if __name__ == "__main__":

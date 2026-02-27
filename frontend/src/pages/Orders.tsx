@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Package, Play, Clock } from "lucide-react";
+import { Package, Play, Clock, Share2 } from "lucide-react";
 import { orderApi } from "../utils/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -54,9 +54,18 @@ export default function Orders() {
           <h1 className="text-3xl font-bold text-gray-900">Order Management</h1>
           <p className="text-gray-600 mt-1">Submit and track delivery orders</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Package className="h-5 w-5" />
-          <span>{mockOrders?.count || 0} mock orders available</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/orders/graph")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-cheetah-300 text-cheetah-700 bg-cheetah-50 hover:bg-cheetah-100 transition-colors"
+          >
+            <Share2 className="h-4 w-4" />
+            See all orders
+          </button>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Package className="h-5 w-5" />
+            <span>{mockOrders?.count || 0} mock orders available</span>
+          </div>
         </div>
       </div>
 

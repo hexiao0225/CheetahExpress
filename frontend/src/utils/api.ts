@@ -32,6 +32,25 @@ export interface Order {
   }
 }
 
+export interface OrdersGraphEdge {
+  order_id: string
+  status?: string
+  driver_id?: string | null
+  driver_name?: string | null
+  distance_km?: number | null
+  duration_hours?: number | null
+  assigned_at?: string | null
+}
+
+export interface OrdersGraphResponse {
+  count: number
+  orders: OrdersGraphEdge[]
+  drivers: {
+    driver_id: string
+    driver_name: string
+  }[]
+}
+
 export interface MockOrder {
   order_id: string
   pickup: {
@@ -92,6 +111,7 @@ export const orderApi = {
   submitMockOrder: (orderId: string) => api.post<Order>(`/mock/orders/${orderId}`),
   getOrderStatus: (orderId: string) => api.get<Order>(`/orders/${orderId}`),
   getAuditTrail: (orderId: string) => api.get<AuditTrail>(`/orders/${orderId}/audit`),
+  getOrdersGraph: () => api.get<OrdersGraphResponse>('/orders_graph'),
   createOrder: (order: any) => api.post<Order>('/orders', order),
 }
 
