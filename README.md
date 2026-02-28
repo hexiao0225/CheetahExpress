@@ -4,6 +4,9 @@
 
 Cheetah Express is an intelligent, multi-agent delivery dispatch system that automates driver assignment through real-time compliance checking, route optimization, and AI-powered voice dispatch.
 
+<img width="544" height="503" alt="Screenshot 2026-02-27 at 3 45 21 PM" src="https://github.com/user-attachments/assets/6b466412-a883-4bf5-b32d-d3d9733c8e6d" />
+<img width="526" height="505" alt="Screenshot 2026-02-27 at 3 46 05 PM" src="https://github.com/user-attachments/assets/f8e91a9f-9421-4f8c-9266-59ce9d5f2e2e" />
+
 ## Team
 
 - hexiao0225
