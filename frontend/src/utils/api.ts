@@ -51,6 +51,14 @@ export interface OrdersGraphResponse {
   }[]
 }
 
+export interface YutoriDriverSearchResponse {
+  enabled: boolean
+  source: string
+  count: number
+  results: Record<string, any>[]
+  message?: string
+}
+
 export interface MockOrder {
   order_id: string
   pickup: {
@@ -112,6 +120,13 @@ export const orderApi = {
   getOrderStatus: (orderId: string) => api.get<Order>(`/orders/${orderId}`),
   getAuditTrail: (orderId: string) => api.get<AuditTrail>(`/orders/${orderId}/audit`),
   getOrdersGraph: () => api.get<OrdersGraphResponse>('/orders_graph'),
+  searchYutoriDrivers: (params: {
+    query: string
+    limit?: number
+    latitude?: number
+    longitude?: number
+    vehicle_type?: string
+  }) => api.get<YutoriDriverSearchResponse>('/drivers/search/yutori', { params }),
   createOrder: (order: any) => api.post<Order>('/orders', order),
 }
 

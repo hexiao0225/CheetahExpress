@@ -1,62 +1,158 @@
-import { User, MapPin, Car, Calendar, CheckCircle2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import {
+  User,
+  MapPin,
+  Car,
+  Calendar,
+  CheckCircle2,
+  Search,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { orderApi } from "../utils/api";
 
 const mockDrivers = [
   {
-    id: 'DRV001',
-    name: 'John Smith',
-    phone: '+1-555-0101',
-    vehicle: 'Sedan',
-    location: '450 Sutter St, San Francisco',
-    status: 'available',
+    id: "DRV001",
+    name: "John Smith",
+    phone: "+1-555-0101",
+    vehicle: "Sedan",
+    location: "450 Sutter St, San Francisco",
+    status: "available",
     ordersToday: 3,
     kmToday: 45.2,
-    licenseExpiry: '2025-12-31',
+    licenseExpiry: "2025-12-31",
   },
   {
-    id: 'DRV002',
-    name: 'Sarah Johnson',
-    phone: '+1-555-0102',
-    vehicle: 'SUV',
-    location: '1 Market St, San Francisco',
-    status: 'on_delivery',
+    id: "DRV002",
+    name: "Sarah Johnson",
+    phone: "+1-555-0102",
+    vehicle: "SUV",
+    location: "1 Market St, San Francisco",
+    status: "on_delivery",
     ordersToday: 5,
     kmToday: 67.8,
-    licenseExpiry: '2026-06-30',
+    licenseExpiry: "2026-06-30",
   },
   {
-    id: 'DRV003',
-    name: 'Mike Chen',
-    phone: '+1-555-0103',
-    vehicle: 'Van',
-    location: '555 California St, San Francisco',
-    status: 'available',
+    id: "DRV003",
+    name: "Mike Chen",
+    phone: "+1-555-0103",
+    vehicle: "Van",
+    location: "555 California St, San Francisco",
+    status: "available",
     ordersToday: 2,
     kmToday: 28.5,
-    licenseExpiry: '2025-03-15',
+    licenseExpiry: "2025-03-15",
   },
-]
+];
 
 export default function Drivers() {
+  const [searchQuery, setSearchQuery] = useState(
+    "available sedan drivers near downtown SF",
+  );
+
+  const yutoriSearchMutation = useMutation({
+    mutationFn: (query: string) =>
+      orderApi.searchYutoriDrivers({
+        query,
+        limit: 8,
+      }),
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-700'
-      case 'on_delivery':
-        return 'bg-blue-100 text-blue-700'
-      case 'offline':
-        return 'bg-gray-100 text-gray-700'
+      case "available":
+        return "bg-green-100 text-green-700";
+      case "on_delivery":
+        return "bg-blue-100 text-blue-700";
+      case "offline":
+        return "bg-gray-100 text-gray-700";
       default:
-        return 'bg-gray-100 text-gray-700'
+        return "bg-gray-100 text-gray-700";
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Driver Management</h1>
-        <p className="text-gray-600 mt-1">Monitor and manage your driver fleet</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Driver Management
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Monitor and manage your driver fleet
+          </p>
+        </div>
+        <div className="w-full max-w-xl bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Driver Session · Yutori Search
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cheetah-500"
+              placeholder="Search drivers with natural language"
+            />
+            <button
+              onClick={() => yutoriSearchMutation.mutate(searchQuery)}
+              disabled={!searchQuery.trim() || yutoriSearchMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cheetah-600 text-white hover:bg-cheetah-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Search className="h-4 w-4" />
+              {yutoriSearchMutation.isPending
+                ? "Searching..."
+                : "Search Drivers"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Calls <code>/api/v1/drivers/search/yutori</code>
+          </p>
+        </div>
       </div>
+
+      {yutoriSearchMutation.data && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Yutori Search Results
+            </h2>
+            <span className="text-sm text-gray-600">
+              {yutoriSearchMutation.data.data.count} matches
+            </span>
+          </div>
+
+          {yutoriSearchMutation.data.data.message && (
+            <p className="mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {yutoriSearchMutation.data.data.message}
+            </p>
+          )}
+
+          {yutoriSearchMutation.data.data.results.length > 0 ? (
+            <div className="space-y-2 max-h-72 overflow-auto">
+              {yutoriSearchMutation.data.data.results.map((result, index) => (
+                <div
+                  key={index}
+                  className="p-3 rounded-lg bg-gray-50 border border-gray-200"
+                >
+                  <p className="text-sm font-semibold text-gray-900">
+                    {result.name ||
+                      result.driver_name ||
+                      result.driver_id ||
+                      `Result ${index + 1}`}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1 break-all">
+                    {JSON.stringify(result)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No results returned.</p>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -64,7 +160,9 @@ export default function Drivers() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Drivers</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{mockDrivers.length}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {mockDrivers.length}
+              </p>
             </div>
             <User className="h-8 w-8 text-cheetah-600" />
           </div>
@@ -74,7 +172,7 @@ export default function Drivers() {
             <div>
               <p className="text-sm text-gray-600">Available</p>
               <p className="text-2xl font-bold text-green-600 mt-1">
-                {mockDrivers.filter(d => d.status === 'available').length}
+                {mockDrivers.filter((d) => d.status === "available").length}
               </p>
             </div>
             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -85,7 +183,7 @@ export default function Drivers() {
             <div>
               <p className="text-sm text-gray-600">On Delivery</p>
               <p className="text-2xl font-bold text-blue-600 mt-1">
-                {mockDrivers.filter(d => d.status === 'on_delivery').length}
+                {mockDrivers.filter((d) => d.status === "on_delivery").length}
               </p>
             </div>
             <Car className="h-8 w-8 text-blue-600" />
@@ -106,15 +204,20 @@ export default function Drivers() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="h-14 w-14 rounded-full bg-gradient-to-br from-cheetah-500 to-cheetah-600 flex items-center justify-center text-white font-bold text-lg">
-                  {driver.name.split(' ').map(n => n[0]).join('')}
+                  {driver.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{driver.name}</h3>
                   <p className="text-sm text-gray-500">{driver.id}</p>
                 </div>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(driver.status)}`}>
-                {driver.status.replace('_', ' ')}
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(driver.status)}`}
+              >
+                {driver.status.replace("_", " ")}
               </span>
             </div>
 
@@ -123,14 +226,18 @@ export default function Drivers() {
                 <Car className="h-4 w-4 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-xs text-gray-500">Vehicle</p>
-                  <p className="text-sm font-medium text-gray-900">{driver.vehicle}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {driver.vehicle}
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-xs text-gray-500">Location</p>
-                  <p className="text-sm font-medium text-gray-900">{driver.location.split(',')[0]}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {driver.location.split(",")[0]}
+                  </p>
                 </div>
               </div>
             </div>
@@ -138,15 +245,21 @@ export default function Drivers() {
             <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
               <div>
                 <p className="text-xs text-gray-500">Orders Today</p>
-                <p className="text-lg font-bold text-gray-900">{driver.ordersToday}</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {driver.ordersToday}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">KM Today</p>
-                <p className="text-lg font-bold text-gray-900">{driver.kmToday}</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {driver.kmToday}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Remaining</p>
-                <p className="text-lg font-bold text-green-600">{(300 - driver.kmToday).toFixed(0)}</p>
+                <p className="text-lg font-bold text-green-600">
+                  {(300 - driver.kmToday).toFixed(0)}
+                </p>
               </div>
             </div>
 
@@ -163,5 +276,5 @@ export default function Drivers() {
         ))}
       </div>
     </div>
-  )
+  );
 }

@@ -8,10 +8,9 @@ class Settings(BaseSettings):
     google_maps_api_key: str
     modulate_api_key: str
     modulate_base_url: str = "https://api.modulate.ai/v1"
-    enable_fastino: bool = False
-    fastino_api_key: Optional[str] = None
-    fastino_base_url: str = "https://api.fastino.ai/v1"
-    fastino_model: str = "fastino-mini"
+    enable_yutori_search: bool = True
+    yutori_api_key: Optional[str] = None
+    yutori_base_url: str = "https://api.yutori.com/v1"
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str

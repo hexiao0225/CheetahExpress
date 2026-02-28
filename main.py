@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import structlog
@@ -142,6 +142,32 @@ async def get_mock_orders():
         "count": len(orders),
         "orders": orders
     }
+
+
+@app.get("/api/v1/drivers/search/yutori")
+async def search_drivers_yutori(
+    query: str = Query(..., min_length=1, description="Natural language driver query"),
+    limit: int = Query(10, ge=1, le=50),
+    latitude: float | None = Query(None),
+    longitude: float | None = Query(None),
+    vehicle_type: str | None = Query(None),
+):
+    """Read-only driver search endpoint backed by Yutori."""
+    try:
+        from agents.driver_context_agent import DriverContextAgent
+
+        driver_agent = DriverContextAgent()
+        result = await driver_agent.search_yutori_drivers(
+            query=query,
+            limit=limit,
+            latitude=latitude,
+            longitude=longitude,
+            vehicle_type=vehicle_type,
+        )
+        return result
+    except Exception as e:
+        logger.error("Yutori driver search endpoint failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/v1/mock/orders/{order_id}")
