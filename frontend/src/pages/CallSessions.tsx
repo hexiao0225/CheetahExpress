@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   Phone,
   User,
@@ -7,12 +7,26 @@ import {
   CheckCircle2,
   XCircle,
   PhoneOff,
+  Mic,
+  MicOff,
+  Volume2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { orderApi } from "../utils/api";
+import {
+  orderApi,
+  type DemoCallScript,
+  type DemoTranscribeResult,
+} from "../utils/api";
+import { createWavRecorder } from "../utils/wavRecorder";
 import { toast } from "sonner";
+
+type LiveDemoPhase =
+  | "idle"
+  | "playing_script"
+  | "listening"
+  | "processing"
+  | "done";
 
 interface CallSession {
   id: string;
@@ -60,20 +74,93 @@ const mockCallSessions: CallSession[] = [
   },
 ];
 
+const LISTEN_SECONDS = 15;
+
 export default function CallSessions() {
   const [filter, setFilter] = useState<"all" | "accepted" | "declined">("all");
-  const navigate = useNavigate();
+  const [liveDemoPhase, setLiveDemoPhase] = useState<LiveDemoPhase>("idle");
+  const [liveDemoScript, setLiveDemoScript] = useState<DemoCallScript | null>(
+    null,
+  );
+  const [liveDemoResult, setLiveDemoResult] =
+    useState<DemoTranscribeResult | null>(null);
+  const wavRecorderRef = useRef<ReturnType<typeof createWavRecorder> | null>(
+    null,
+  );
+  const listenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const demoCallMutation = useMutation({
-    mutationFn: (orderId: string) => orderApi.submitMockOrder(orderId),
+    mutationFn: () => orderApi.triggerDemoCall(),
     onSuccess: (res) => {
-      toast.success(`Demo started for ${res.data.order_id}`);
-      navigate(`/orders/${res.data.order_id}`);
+      const { driver_name, outcome, call_duration_seconds } = res.data;
+      const dur = call_duration_seconds ? ` (${call_duration_seconds}s)` : "";
+      toast.success(`Call to ${driver_name}: ${outcome}${dur}`);
     },
     onError: (error: any) => {
-      toast.error(`Demo failed: ${error?.message || "Unknown error"}`);
+      toast.error(`Demo call failed: ${error?.message || "Unknown error"}`);
     },
   });
+
+  const playScript = useCallback((script: string) => {
+    return new Promise<void>((resolve) => {
+      const u = new SpeechSynthesisUtterance(script);
+      u.rate = 1.0;
+      u.onend = () => resolve();
+      window.speechSynthesis.speak(u);
+    });
+  }, []);
+
+  const sendWavAndShowResult = useCallback(
+    async (blob: Blob) => {
+      setLiveDemoPhase("processing");
+      try {
+        const { data: result } = await orderApi.transcribeDemoCall(blob);
+        setLiveDemoResult(result);
+        setLiveDemoPhase("done");
+        playScript(result.response_message);
+      } catch (err: any) {
+        toast.error(`Transcription failed: ${err?.message || "Unknown error"}`);
+        setLiveDemoPhase("idle");
+      }
+    },
+    [playScript],
+  );
+
+  const startLiveDemo = useCallback(async () => {
+    try {
+      setLiveDemoPhase("playing_script");
+      setLiveDemoResult(null);
+      const { data } = await orderApi.getDemoCallScript();
+      setLiveDemoScript(data);
+      await playScript(data.script);
+      setLiveDemoPhase("listening");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = createWavRecorder(stream, LISTEN_SECONDS);
+      wavRecorderRef.current = recorder;
+      listenTimeoutRef.current = setTimeout(() => {
+        listenTimeoutRef.current = null;
+        wavRecorderRef.current?.stop().then(sendWavAndShowResult);
+        wavRecorderRef.current = null;
+      }, LISTEN_SECONDS * 1000);
+    } catch (err: any) {
+      toast.error(
+        err?.message || "Could not start live demo (check mic permission)",
+      );
+      setLiveDemoPhase("idle");
+    }
+  }, [playScript, sendWavAndShowResult]);
+
+  const stopListening = useCallback(() => {
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+    const rec = wavRecorderRef.current;
+    if (rec) {
+      rec.stop().then(sendWavAndShowResult);
+      wavRecorderRef.current = null;
+    }
+  }, [sendWavAndShowResult]);
 
   const filteredSessions = mockCallSessions.filter((session) => {
     if (filter === "all") return true;
@@ -121,18 +208,17 @@ export default function CallSessions() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900">
-            Live Demo Trigger
+            Server Mic Demo
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            Click to run a full dispatch flow and jump to the order detail page
-            to watch call outcomes.
+            Run the full dispatch flow using this machine&apos;s microphone (server-side recording).
           </p>
         </div>
         <button
-          onClick={() => demoCallMutation.mutate("ORD002")}
+          onClick={() => demoCallMutation.mutate()}
           disabled={demoCallMutation.isPending}
           className="bg-cheetah-600 text-white px-4 py-2 rounded-lg hover:bg-cheetah-700 transition-colors disabled:opacity-60"
         >
@@ -140,6 +226,117 @@ export default function CallSessions() {
             ? "Running demo..."
             : "Run Call Demo (ORD002)"}
         </button>
+      </div> */}
+
+      {/* Live call demo: browser mic → transcribe → show in UI */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Mic className="h-5 w-5 text-cheetah-600" />
+              Live Call Demo
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Hear the script in your browser, then say &quot;yes&quot; or
+              &quot;no&quot;. We transcribe your answer and show the result
+              below.
+            </p>
+          </div>
+          <button
+            onClick={
+              liveDemoPhase === "idle" || liveDemoPhase === "done"
+                ? startLiveDemo
+                : liveDemoPhase === "listening"
+                  ? stopListening
+                  : undefined
+            }
+            disabled={
+              liveDemoPhase === "playing_script" ||
+              liveDemoPhase === "processing"
+            }
+            className="bg-cheetah-600 text-white px-4 py-2 rounded-lg hover:bg-cheetah-700 transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {liveDemoPhase === "idle" && "Start live demo"}
+            {liveDemoPhase === "playing_script" && "Playing script..."}
+            {liveDemoPhase === "listening" && (
+              <>
+                <MicOff className="h-4 w-4" />
+                Stop &amp; send ({LISTEN_SECONDS}s max)
+              </>
+            )}
+            {liveDemoPhase === "processing" && "Transcribing..."}
+            {liveDemoPhase === "done" && "Start again"}
+          </button>
+        </div>
+
+        {liveDemoScript && (
+          <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+            <p className="font-medium text-gray-600 mb-1">
+              Call script (to {liveDemoScript.driver_name})
+            </p>
+            <p className="italic">&quot;{liveDemoScript.script}&quot;</p>
+          </div>
+        )}
+
+        {liveDemoPhase === "listening" && (
+          <div className="flex items-center gap-2 text-cheetah-600 font-medium">
+            <Mic className="h-5 w-5 animate-pulse" />
+            Listening for your answer… Say &quot;yes&quot; to accept or
+            &quot;no&quot; to decline.
+          </div>
+        )}
+
+        {liveDemoPhase === "done" && liveDemoResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-gray-900">Your response</span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  liveDemoResult.outcome === "accepted"
+                    ? "bg-green-100 text-green-700"
+                    : liveDemoResult.outcome === "declined"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-gray-200 text-gray-700"
+                }`}
+              >
+                {liveDemoResult.outcome}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Transcript</p>
+              <p className="text-sm text-gray-900">
+                {liveDemoResult.transcript || "(no speech detected)"}
+              </p>
+            </div>
+            {liveDemoResult.decline_reason && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Decline reason</p>
+                <p className="text-sm text-red-700">
+                  {liveDemoResult.decline_reason}
+                </p>
+              </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-500">Sentiment</span>
+              <span className="text-sm font-medium text-gray-900">
+                {Math.round((liveDemoResult.sentiment_score ?? 0.5) * 100)}%
+              </span>
+            </div>
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <Volume2 className="h-3 w-3" />
+                System response
+              </p>
+              <p className="text-sm text-gray-800 italic">
+                &quot;{liveDemoResult.response_message}&quot;
+              </p>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Stats */}
