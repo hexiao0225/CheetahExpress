@@ -1,6 +1,10 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
+import io
+import os
+import tempfile
 import structlog
 from config import settings
 from models import OrderRequest, DispatchResult
@@ -170,6 +174,132 @@ async def submit_mock_order(order_id: str):
             status_code=500,
             detail=f"Failed to process mock order: {str(e)}"
         )
+
+
+def _get_demo_call_context():
+    """Shared demo driver/order/ranking for demo endpoints."""
+    from mock_data import get_mock_order, MOCK_DRIVERS
+    from models import RankingScore
+
+    driver = next((d for d in MOCK_DRIVERS if d.driver_id == "DRV001"), MOCK_DRIVERS[0])
+    order = OrderRequest(**get_mock_order("ORD002"))
+    ranking = RankingScore(
+        driver_id=driver.driver_id,
+        score=95.0,
+        eta_to_pickup_minutes=8.0,
+        total_trip_time_minutes=25.0,
+        vehicle_match=True,
+        license_expiry_buffer_days=365,
+        remaining_km_budget=280.0,
+        reasoning="Demo call",
+    )
+    return driver, order, ranking
+
+
+@app.get("/api/v1/demo/call/script")
+async def get_demo_call_script():
+    """Return the call script and driver/order info for the live demo (browser TTS + mic)."""
+    from agents.voice_dispatch_agent import VoiceDispatchAgent
+
+    driver, order, ranking = _get_demo_call_context()
+    agent = VoiceDispatchAgent()
+    script = agent._generate_call_script(driver, order, ranking)
+    return {
+        "script": script,
+        "driver_name": driver.name,
+        "driver_id": driver.driver_id,
+        "order_id": order.order_id,
+    }
+
+
+@app.post("/api/v1/demo/call/transcribe")
+async def transcribe_demo_call_audio(audio: UploadFile = File(...)):
+    """Accept recorded audio from the browser (WAV or WebM), transcribe via Velma-2, return outcome + response message."""
+    from agents.voice_dispatch_agent import VoiceDispatchAgent
+    from concurrent.futures import ThreadPoolExecutor
+
+    driver, _order, _ranking = _get_demo_call_context()
+    content = await audio.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="No audio data received")
+
+    filename = (audio.filename or "").lower()
+    content_type = (audio.content_type or "").lower()
+    is_webm = "webm" in filename or "webm" in content_type
+    is_ogg = "ogg" in filename or "ogg" in content_type
+
+    wav_path = None
+    try:
+        if is_webm or is_ogg:
+            try:
+                from pydub import AudioSegment
+                fmt = "webm" if is_webm else "ogg"
+                seg = AudioSegment.from_file(io.BytesIO(content), format=fmt)
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    seg.export(f.name, format="wav")
+                    wav_path = f.name
+            except Exception as e:
+                logger.warning("Could not convert to WAV (install ffmpeg for WebM/OGG)", error=str(e))
+                raise HTTPException(
+                    status_code=400,
+                    detail="WebM/OGG conversion failed. Install ffmpeg or record in WAV.",
+                ) from e
+        else:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                f.write(content)
+                wav_path = f.name
+
+        agent = VoiceDispatchAgent()
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            result = await loop.run_in_executor(
+                executor,
+                agent.process_user_audio,
+                wav_path,
+                driver.name,
+            )
+        return {
+            "order_id": _order.order_id,
+            "driver_id": driver.driver_id,
+            "driver_name": driver.name,
+            "transcript": result["transcript"],
+            "outcome": result["outcome"],
+            "decline_reason": result.get("decline_reason"),
+            "sentiment_score": result["sentiment_score"],
+            "response_message": result["response_message"],
+        }
+    finally:
+        if wav_path:
+            try:
+                os.unlink(wav_path)
+            except Exception:
+                pass
+
+
+@app.post("/api/v1/demo/call")
+async def trigger_demo_call():
+    """Place a real Modulate voice call to DRV001 for ORD002 — no orchestration, no DB (server mic)."""
+    from agents.voice_dispatch_agent import VoiceDispatchAgent
+
+    driver, order, ranking = _get_demo_call_context()
+    logger.info("Demo call triggered", driver_id=driver.driver_id, phone=driver.phone)
+
+    try:
+        result = await VoiceDispatchAgent()._call_driver(driver, order, ranking)
+        return {
+            "order_id": order.order_id,
+            "driver_id": result.driver_id,
+            "driver_name": driver.name,
+            "phone": driver.phone,
+            "outcome": result.outcome.value,
+            "sentiment_score": result.sentiment_score,
+            "decline_reason": result.decline_reason,
+            "transcript": result.transcript,
+            "call_duration_seconds": result.call_duration_seconds,
+        }
+    except Exception as e:
+        logger.error("Demo call failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Demo call failed: {str(e)}")
 
 
 @app.get("/api/v1/orders/{order_id}/audit")

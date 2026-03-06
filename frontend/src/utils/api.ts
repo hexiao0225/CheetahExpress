@@ -106,6 +106,36 @@ export interface AuditTrail {
   }
 }
 
+export interface DemoCallResult {
+  order_id: string
+  driver_id: string
+  driver_name: string
+  phone: string
+  outcome: 'accepted' | 'declined' | 'no_answer' | 'failed'
+  sentiment_score?: number
+  decline_reason?: string
+  transcript?: string
+  call_duration_seconds?: number
+}
+
+export interface DemoCallScript {
+  script: string
+  driver_name: string
+  driver_id: string
+  order_id: string
+}
+
+export interface DemoTranscribeResult {
+  order_id: string
+  driver_id: string
+  driver_name: string
+  transcript: string
+  outcome: string
+  decline_reason?: string
+  sentiment_score: number
+  response_message: string
+}
+
 export const orderApi = {
   getMockOrders: () => api.get<{ count: number; orders: MockOrder[] }>('/mock/orders'),
   submitMockOrder: (orderId: string) => api.post<Order>(`/mock/orders/${orderId}`),
@@ -113,6 +143,16 @@ export const orderApi = {
   getAuditTrail: (orderId: string) => api.get<AuditTrail>(`/orders/${orderId}/audit`),
   getOrdersGraph: () => api.get<OrdersGraphResponse>('/orders_graph'),
   createOrder: (order: any) => api.post<Order>('/orders', order),
+  triggerDemoCall: () => api.post<DemoCallResult>('/demo/call'),
+  getDemoCallScript: () => api.get<DemoCallScript>('/demo/call/script'),
+  transcribeDemoCall: (audioBlob: Blob) => {
+    const form = new FormData()
+    const isWav = audioBlob.type === 'audio/wav' || audioBlob.type === 'audio/wave'
+    form.append('audio', audioBlob, isWav ? 'recording.wav' : 'recording.webm')
+    return api.post<DemoTranscribeResult>('/demo/call/transcribe', form, {
+      timeout: 60000,
+    })
+  },
 }
 
 export default api

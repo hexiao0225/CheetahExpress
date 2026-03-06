@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     google_maps_api_key: str
     modulate_api_key: str
-    modulate_base_url: str = "https://api.modulate.ai/v1"
+    modulate_base_url: str = "https://modulate-developer-apis.com"
     enable_fastino: bool = False
     fastino_api_key: Optional[str] = None
     fastino_base_url: str = "https://api.fastino.ai/v1"
